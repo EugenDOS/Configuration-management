@@ -10,33 +10,45 @@ parser.add_argument("zip_path", type=str, help="Path to zip archive")
 args = parser.parse_args()
 
 
+current_directory = ""
+
 def command():
     command = input_area.get("1.0", tk.END)[:-1]
     
     with ZipFile(args.zip_path, "a") as myzip:
         
-        if command == "ls": ls(myzip.namelist())
+        if command == "ls": 
+            ls([name for name in myzip.namelist() if name.startswith(current_directory)])
         
-        elif command == "exit": exit()
+        elif command == "exit": 
+            exit()
         
-        elif command.startswith("cat"): 
-            path = command.split()[1]
-            cat(myzip.read(path).decode())
+        elif command.startswith("cd"):
+            try:
+                path = command.split()[1]
+                cd(path)
+            except IndexError:
+                write(output_area, "Bad syntax\n")
 
-            
-def write(text_widget: tk.Text, text):
-    text_widget.configure(state=tk.NORMAL)
-    text_widget.insert(tk.END, text)
-    text_widget.configure(state=tk.DISABLED)
 
 def ls(name_list):
     names = ""
     for name in name_list:
         names += name + "\n"
     write(output_area, names)
+    
+def cd(path):
+    # Проверка, что путь существует внутри архива
+    if any(name.startswith(path) for name in ZipFile(args.zip_path).namelist()):
+        current_directory = path if path.endswith("/") else path + "/"
+        write(output_area, f"Changed directory to {current_directory}\n")
+    else:
+        write(output_area, f"Directory {path} not found\n")
 
-def cat(content):
-    output_area.insert(tk.END, content + "\n")
+def write(text_widget: tk.Text, text):
+    text_widget.configure(state=tk.NORMAL)
+    text_widget.insert(tk.END, text+"\n")
+    text_widget.configure(state=tk.DISABLED)
 
 def clear():
     output_area.configure(state=tk.NORMAL)
