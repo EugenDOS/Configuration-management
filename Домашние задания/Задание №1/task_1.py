@@ -39,7 +39,9 @@ def cat(content):
     output_area.insert(tk.END, content + "\n")
 
 def clear():
-    output_area.delete('1.0', tk.END)
+    output_area.configure(state=tk.NORMAL)
+    output_area.delete("1.0", tk.END)
+    output_area.configure(state=tk.DISABLED)
 
 
 root = tk.Tk()
