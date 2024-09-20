@@ -13,6 +13,7 @@ args = parser.parse_args()
 current_directory = ""
 
 def command():
+    global current_directory
     command = input_area.get("1.0", tk.END)[:-1]
     
     with ZipFile(args.zip_path, "a") as myzip:
@@ -28,26 +29,47 @@ def command():
                 path = command.split()[1]
                 cd(path)
             except IndexError:
-                write(output_area, "Bad syntax\n")
+                write(output_area, "Bad syntax")
 
 
 def ls(name_list):
-    names = ""
-    for name in name_list:
-        names += name + "\n"
-    write(output_area, names)
+    directories = set()
+    files = set()
     
-def cd(path):
-    # Проверка, что путь существует внутри архива
-    if any(name.startswith(path) for name in ZipFile(args.zip_path).namelist()):
-        current_directory = path if path.endswith("/") else path + "/"
-        write(output_area, f"Changed directory to {current_directory}\n")
+    for name in name_list:
+        # Удаление части пути до текущей директории
+        relative_path = name[len(current_directory):]
+
+        # Если есть поддиректории, то это директория
+        if relative_path.endswith("/"):
+            directories.add(relative_path.split("/")[0] + "/")
+        else:
+            # Если это файл, добавляем его полностью (с расширением)
+            files.add(relative_path)
+
+    # Объединение директорий и файлов для вывода
+    all_items = sorted(directories | files)
+    
+    if all_items:
+        names = "\n".join(all_items)
+        write(output_area, names)
     else:
-        write(output_area, f"Directory {path} not found\n")
+        write(output_area, "No files or directories found")
+
+def cd(path):
+    global current_directory
+    # Проверка, что путь существует внутри архива
+    with ZipFile(args.zip_path) as myzip:
+        if any(name.startswith(path) for name in myzip.namelist()):
+            current_directory = path if path.endswith("/") else path + "/"
+            write(output_area, f"Changed directory to {current_directory}")
+        else:
+            write(output_area, f"Directory {path} not found")
+
 
 def write(text_widget: tk.Text, text):
     text_widget.configure(state=tk.NORMAL)
-    text_widget.insert(tk.END, text+"\n")
+    text_widget.insert(tk.END, text+"\n\n")
     text_widget.configure(state=tk.DISABLED)
 
 def clear():
