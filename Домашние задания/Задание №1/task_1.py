@@ -12,6 +12,9 @@ args = parser.parse_args()
 
 current_directory = ""
 
+# Словарь для хранения прав доступа к файлам в виде метаданных
+permissions = {}
+
 def command():
     global current_directory
     command = input_area.get("1.0", tk.END)[:-1]
@@ -29,8 +32,31 @@ def command():
                 path = command.split()[1]
                 cd(path)
             except IndexError:
-                write(output_area, "Bad syntax")
+                write("Bad syntax for cd. Use: cd <file_path>\n")
+        
+        elif command.startswith("chmod"):
+            try:
+                parts = command.split()
+                mode = parts[1]
+                file_path = parts[2]
+                chmod(mode, file_path)
+            except IndexError:
+                write("Bad syntax for chmod. Use: chmod <mode> <file_path>\n")
 
+def chmod(mode, file_path):
+    global permissions
+    # Проверка, что файл существует в архиве
+    with ZipFile(args.zip_path) as myzip:
+        full_path = current_directory + file_path
+        if full_path in myzip.namelist():
+            try:
+                octal_mode = int(mode, 8)
+                permissions[full_path] = octal_mode
+                write(f"Changed permissions of {file_path} to {mode}")
+            except ValueError:
+                write("Invalid mode. Use octal format (e.g., 755, 644).\n")
+        else:
+            write(f"File {file_path} not found in the current directory.\n")
 
 def ls(name_list):
     directories = set()
@@ -51,26 +77,36 @@ def ls(name_list):
     all_items = sorted(directories | files)
     
     if all_items:
-        names = "\n".join(all_items)
-        write(output_area, names)
+        for item in all_items:
+            if current_directory + item in permissions:
+                mode_str = oct(permissions[current_directory + item])[2:]
+                write(f"{mode_str} {item}")
+            else:
+                write(f"--- {item}")
+        write()
     else:
-        write(output_area, "No files or directories found")
+        write("No files or directories found\n")
 
 def cd(path):
     global current_directory
-    # Проверка, что путь существует внутри архива
     with ZipFile(args.zip_path) as myzip:
-        if any(name.startswith(path) for name in myzip.namelist()):
+        if path == "/":  # Если пользователь хочет перейти в корень
+            current_directory = ""  # Корень архива
+            write("Returned to root directory\n")
+        elif any(name.startswith(path) for name in myzip.namelist()):
             current_directory = path if path.endswith("/") else path + "/"
-            write(output_area, f"Changed directory to {current_directory}")
+            write(f"Changed directory to {current_directory}\n")
         else:
-            write(output_area, f"Directory {path} not found")
+            write(f"Directory {path} not found\n")
+    updateLabel()
 
+def updateLabel():
+    label.config(text=f"PATH: {current_directory}")
 
-def write(text_widget: tk.Text, text):
-    text_widget.configure(state=tk.NORMAL)
-    text_widget.insert(tk.END, text+"\n\n")
-    text_widget.configure(state=tk.DISABLED)
+def write(text=""):
+    output_area.configure(state=tk.NORMAL)
+    output_area.insert(tk.END, text+"\n")
+    output_area.configure(state=tk.DISABLED)
 
 def clear():
     output_area.configure(state=tk.NORMAL)
@@ -80,6 +116,10 @@ def clear():
 
 root = tk.Tk()
 root.title(f"Terminal — {args.user_name}@{args.pc_name}")
+root.geometry("450x320")
+
+label = tk.Label(text=f"PATH: {current_directory}")
+label.pack()
 
 output_area = tk.Text(root, height=10, width=45, state=tk.DISABLED)
 output_area.pack(pady=10)
