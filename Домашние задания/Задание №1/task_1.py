@@ -62,8 +62,35 @@ def command():
                     write("Bad syntax for cal. Use: cal [month] [year]\n")
             except ValueError:
                 write("Invalid month or year. Please enter numeric values.\n")
+
+        elif command.startswith("find"):
+            try:
+                parts = command.split()
+                if len(parts) == 2:  # Если указан критерий поиска
+                    search_term = parts[1]
+                    find(search_term)
+                else:
+                    write("Bad syntax for find. Use: find <search_term>\n")
+            except ValueError:
+                write("Invalid search term.\n")
+                
         else:
-            write("Bad syntax or unknown command\n")
+            write("Bad syntax or unknown command.\n")
+
+
+def find(search_term):
+    """Поиск файлов и директорий в архиве по имени или части имени."""
+    with ZipFile(args.zip_path) as myzip:
+        matches = [name for name in myzip.namelist() if search_term in name]
+        
+        if matches:
+            write(f"Found {len(matches)} result(s):")
+            for match in matches:
+                write(match)
+            write()
+        else:
+            write(f"No results found for '{search_term}'.\n")
+
 
 def cal(month=None, year=None):
     # Если месяц и год не указаны, выводим текущий месяц и год
