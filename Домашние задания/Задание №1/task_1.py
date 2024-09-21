@@ -1,5 +1,7 @@
 import argparse
 import tkinter as tk
+import calendar
+from datetime import datetime
 from zipfile import ZipFile
 
 
@@ -43,8 +45,35 @@ def command():
             except IndexError:
                 write("Bad syntax for chmod. Use: chmod <mode> <file_path>\n")
                 
+        elif command.startswith("cal"):
+            try:
+                parts = command.split()
+                if len(parts) == 1:  # Если команда без аргументов
+                    cal()
+                elif len(parts) == 2:  # Если указан только месяц
+                    month = int(parts[1])
+                    year = datetime.now().year  # Текущий год по умолчанию
+                    cal(month, year)
+                elif len(parts) == 3:  # Если указан и месяц, и год
+                    month = int(parts[1])
+                    year = int(parts[2])
+                    cal(month, year)
+                else:
+                    write("Bad syntax for cal. Use: cal [month] [year]\n")
+            except ValueError:
+                write("Invalid month or year. Please enter numeric values.\n")
         else:
-            write("Bad syntax or unknow command\n")
+            write("Bad syntax or unknown command\n")
+
+def cal(month=None, year=None):
+    # Если месяц и год не указаны, выводим текущий месяц и год
+    if month is None and year is None:
+        now = datetime.now()
+        month = now.month
+        year = now.year
+    
+    cal_str = calendar.TextCalendar().formatmonth(year, month)
+    write(cal_str)
 
 def chmod(mode, file_path):
     global permissions
