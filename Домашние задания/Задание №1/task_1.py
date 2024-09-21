@@ -42,6 +42,9 @@ def command():
                 chmod(mode, file_path)
             except IndexError:
                 write("Bad syntax for chmod. Use: chmod <mode> <file_path>\n")
+                
+        else:
+            write("Bad syntax or unknow command\n")
 
 def chmod(mode, file_path):
     global permissions
