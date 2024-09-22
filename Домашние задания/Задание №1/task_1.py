@@ -4,27 +4,28 @@ import calendar
 from datetime import datetime
 from zipfile import ZipFile
 
-
-parser = argparse.ArgumentParser(description="Main info getter")
-parser.add_argument("user_name", type=str, help="User name")
-parser.add_argument("pc_name", type=str, help="PC name")
-parser.add_argument("zip_path", type=str, help="Path to zip archive")
-args = parser.parse_args()
-
-
 current_directory = ""
-
-# Словарь для хранения прав доступа к файлам в виде метаданных
 permissions = {}
 
-def command():
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Main info getter")
+    parser.add_argument("user_name", type=str, help="User name")
+    parser.add_argument("pc_name", type=str, help="PC name")
+    parser.add_argument("zip_path", type=str, help="Path to zip archive")
+    return parser.parse_args()
+
+def command(cmd=None):
     global current_directory
-    command = input_area.get("1.0", tk.END)[:-1]
+    
+    if cmd:
+        command = cmd
+    else:
+        command = input_area.get("1.0", tk.END)[:-1]
     
     with ZipFile(args.zip_path, "a") as myzip:
         
         if command == "ls": 
-            ls([name for name in myzip.namelist() if name.startswith(current_directory)])
+            return ls([name for name in myzip.namelist() if name.startswith(current_directory)])
         
         elif command == "exit": 
             exit()
@@ -32,65 +33,65 @@ def command():
         elif command.startswith("cd"):
             try:
                 path = command.split()[1]
-                cd(path)
+                return cd(path)
             except IndexError:
-                write("Bad syntax for cd. Use: cd <file_path>\n")
+                return write("Bad syntax for cd. Use: cd <file_path>\n")
         
         elif command.startswith("chmod"):
             try:
                 parts = command.split()
                 mode = parts[1]
                 file_path = parts[2]
-                chmod(mode, file_path)
+                return chmod(mode, file_path)
             except IndexError:
-                write("Bad syntax for chmod. Use: chmod <mode> <file_path>\n")
+                return write("Bad syntax for chmod. Use: chmod <mode> <file_path>\n")
                 
         elif command.startswith("cal"):
             try:
                 parts = command.split()
                 if len(parts) == 1:  # Если команда без аргументов
-                    cal()
+                    return cal()
                 elif len(parts) == 2:  # Если указан только месяц
                     month = int(parts[1])
                     year = datetime.now().year  # Текущий год по умолчанию
-                    cal(month, year)
+                    return cal(month, year)
                 elif len(parts) == 3:  # Если указан и месяц, и год
                     month = int(parts[1])
                     year = int(parts[2])
-                    cal(month, year)
+                    return cal(month, year)
                 else:
-                    write("Bad syntax for cal. Use: cal [month] [year]\n")
+                    return write("Bad syntax for cal. Use: cal [month] [year]\n")
             except ValueError:
-                write("Invalid month or year. Please enter numeric values.\n")
+                return write("Invalid month or year. Please enter numeric values.\n")
 
         elif command.startswith("find"):
             try:
                 parts = command.split()
                 if len(parts) == 2:  # Если указан критерий поиска
                     search_term = parts[1]
-                    find(search_term)
+                    return find(search_term)
                 else:
-                    write("Bad syntax for find. Use: find <search_term>\n")
+                    return write("Bad syntax for find. Use: find <search_term>\n")
             except ValueError:
-                write("Invalid search term.\n")
+                return write("Invalid search term.\n")
                 
         else:
-            write("Bad syntax or unknown command.\n")
+            return write("Bad syntax or unknown command.\n")
 
 
 def find(search_term):
-    """Поиск файлов и директорий в архиве по имени или части имени."""
     with ZipFile(args.zip_path) as myzip:
         matches = [name for name in myzip.namelist() if search_term in name]
         
         if matches:
-            write(f"Found {len(matches)} result(s):")
+            rslt = ""
+            rslt += write(f"Found {len(matches)} result(s):")
             for match in matches:
-                write(match)
+                rslt += write(match)
             write()
+            return rslt
         else:
-            write(f"No results found for '{search_term}'.\n")
-
+            return write(f"No results found for '{search_term}'.\n")
 
 def cal(month=None, year=None):
     # Если месяц и год не указаны, выводим текущий месяц и год
@@ -100,7 +101,7 @@ def cal(month=None, year=None):
         year = now.year
     
     cal_str = calendar.TextCalendar().formatmonth(year, month)
-    write(cal_str)
+    return write(cal_str)
 
 def chmod(mode, file_path):
     global permissions
@@ -111,11 +112,11 @@ def chmod(mode, file_path):
             try:
                 octal_mode = int(mode, 8)
                 permissions[full_path] = octal_mode
-                write(f"Changed permissions of {file_path} to {mode}")
+                return write(f"Changed permissions of {file_path} to {mode}\n")
             except ValueError:
-                write("Invalid mode. Use octal format (e.g., 755, 644).\n")
+                return write("Invalid mode. Use octal format (e.g., 755, 644).\n")
         else:
-            write(f"File {file_path} not found in the current directory.\n")
+            return write(f"File {file_path} not found in the current directory.\n")
 
 def ls(name_list):
     directories = set()
@@ -136,36 +137,42 @@ def ls(name_list):
     all_items = sorted(directories | files)
     
     if all_items:
+        rslt = ""
         for item in all_items:
             if current_directory + item in permissions:
                 mode_str = oct(permissions[current_directory + item])[2:]
-                write(f"{mode_str} {item}")
+                rslt += write(f"{mode_str} {item}")
             else:
-                write(f"--- {item}")
+                rslt += write(f"--- {item}")
         write()
+        return rslt
     else:
-        write("No files or directories found\n")
+        return write("No files or directories found\n")
 
 def cd(path):
     global current_directory
     with ZipFile(args.zip_path) as myzip:
         if path == "/":  # Если пользователь хочет перейти в корень
             current_directory = ""  # Корень архива
-            write("Returned to root directory\n")
+            return write("Returned to root directory\n"), current_directory
         elif any(name.startswith(path) for name in myzip.namelist()):
             current_directory = path if path.endswith("/") else path + "/"
-            write(f"Changed directory to {current_directory}\n")
+            return write(f"Changed directory to {current_directory}\n"), current_directory
         else:
-            write(f"Directory {path} not found\n")
+            return write(f"Directory {path} not found\n"), current_directory
     updateLabel()
 
 def updateLabel():
     label.config(text=f"PATH: {current_directory}")
 
 def write(text=""):
-    output_area.configure(state=tk.NORMAL)
-    output_area.insert(tk.END, text+"\n")
-    output_area.configure(state=tk.DISABLED)
+    try:
+        output_area.configure(state=tk.NORMAL)
+        output_area.insert(tk.END, text+"\n")
+        output_area.configure(state=tk.DISABLED)
+        return text
+    except:
+        return text
 
 def clear():
     output_area.configure(state=tk.NORMAL)
@@ -173,26 +180,29 @@ def clear():
     output_area.configure(state=tk.DISABLED)
 
 
-root = tk.Tk()
-root.title(f"Terminal — {args.user_name}@{args.pc_name}")
-root.geometry("450x320")
+if __name__ == "__main__":    
+    args = parse_arguments()
+    
+    root = tk.Tk()
+    root.title(f"Terminal — {args.user_name}@{args.pc_name}")
+    root.geometry("450x320")
 
-label = tk.Label(text=f"PATH: {current_directory}")
-label.pack()
+    label = tk.Label(text=f"PATH: {current_directory}")
+    label.pack()
 
-output_area = tk.Text(root, height=10, width=45, state=tk.DISABLED)
-output_area.pack(pady=10)
+    output_area = tk.Text(root, height=10, width=45, state=tk.DISABLED)
+    output_area.pack(pady=10)
 
-input_area = tk.Text(root, height=2, width=45)
-input_area.pack(pady=10)
+    input_area = tk.Text(root, height=2, width=45)
+    input_area.pack(pady=10)
 
-button_frame = tk.Frame(root)
-button_frame.pack(pady=10)
+    button_frame = tk.Frame(root)
+    button_frame.pack(pady=10)
 
-exec_button = tk.Button(button_frame, text="Run", command=command)
-exec_button.pack(side=tk.LEFT, padx=10)
+    exec_button = tk.Button(button_frame, text="Run", command=command)
+    exec_button.pack(side=tk.LEFT, padx=10)
 
-clear_button = tk.Button(button_frame, text="Clear", command=clear)
-clear_button.pack(side=tk.LEFT, padx=10)
+    clear_button = tk.Button(button_frame, text="Clear", command=clear)
+    clear_button.pack(side=tk.LEFT, padx=10)
 
-root.mainloop()
+    root.mainloop()
