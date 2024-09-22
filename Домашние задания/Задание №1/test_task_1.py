@@ -85,7 +85,9 @@ def test_cd():
         with ZipFile(zip_path, "w") as myzip:
             myzip.writestr("dir1/", "")
         cur_dir = cd("dir1")[1]
+        lbl = cd("dir1")[2]
         assert cur_dir == "dir1/"
+        assert lbl == f"PATH: {task_1.current_directory}"
         print("OK === cd(), standard mode")
     except Exception as e:
         print(f"ERROR === cd(), standard mode\n{e}\n")
@@ -153,7 +155,9 @@ def test_command_ls_empty():
 def test_command_cd():
     try:
         result = command("cd dir1/")[1]
+        lbl = command("cd dir1/")[2]
         assert result == "dir1/"
+        assert lbl == f"PATH: {task_1.current_directory}"
         print("OK === command(\"cd dir1/\")")
     except Exception as e:
         print(f"ERROR === command(\"cd dir1/\")\n{e}\n")

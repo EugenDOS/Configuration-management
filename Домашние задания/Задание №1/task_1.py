@@ -143,7 +143,10 @@ def ls(name_list):
                 mode_str = oct(permissions[current_directory + item])[2:]
                 rslt += write(f"{mode_str} {item}")
             else:
-                rslt += write(f"--- {item}")
+                if len(item) != 0:
+                    rslt += write(f"--- {item}")
+                else:
+                    continue
         write()
         return rslt
     else:
@@ -154,16 +157,21 @@ def cd(path):
     with ZipFile(args.zip_path) as myzip:
         if path == "/":  # Если пользователь хочет перейти в корень
             current_directory = ""  # Корень архива
-            return write("Returned to root directory\n"), current_directory
+            lbl = updateLabel()
+            return write("Returned to root directory\n"), current_directory, lbl
         elif any(name.startswith(path) for name in myzip.namelist()):
             current_directory = path if path.endswith("/") else path + "/"
-            return write(f"Changed directory to {current_directory}\n"), current_directory
+            lbl = updateLabel()
+            return write(f"Changed directory to {current_directory}\n"), current_directory, lbl
         else:
             return write(f"Directory {path} not found\n"), current_directory
-    updateLabel()
 
 def updateLabel():
-    label.config(text=f"PATH: {current_directory}")
+    try:
+        label.config(text=f"PATH: {current_directory}")
+        return f"PATH: {current_directory}"
+    except:
+        return f"PATH: {current_directory}"
 
 def write(text=""):
     try:
