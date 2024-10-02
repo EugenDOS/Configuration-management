@@ -1,10 +1,12 @@
 .vscode
+.obsidian
+.pytest_cache
 __pycache__
+README.pdf
+README-FOR-PDF.md
+# ===========================================
 Домашние задания/Задание №1/test.py
 Домашние задания/Задание №1/test
 Домашние задания/Задание №1/archive
 Домашние задания/Задание №1/test.zip
-.obsidian
-README.pdf
-README-FOR-PDF.md
-.pytest_cache
+# ===========================================
