@@ -1,0 +1,4 @@
+# graphviz_path: '/path/to/graphviz'          # Путь к программе для визуализации графов (например, Graphviz)
+package_zip_path: '.\TypeScript-5.6.2.zip'  # Путь к zip-файлу анализируемого пакета
+package_name: 'TypeScript-5.6.2'            # Имя папки внутри архива
+output_path: '.\result.mmd'                 # Путь к выходному файлу с диаграммой
