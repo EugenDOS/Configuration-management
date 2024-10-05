@@ -1,76 +1,55 @@
 import os
 import json
 import yaml
-from zipfile import ZipFile
 
-def parse_package_json_from_zip(zip_file: str, package_name: str):
-    """Читаем файл package.json из zip-файла."""
-    with ZipFile(zip_file, 'r') as archive:
-        # Формируем путь до package.json, который находится в одноимённой папке
-        package_json_path = f"{package_name}/package.json"
-        try:
-            with archive.open(package_json_path) as file:
-                package_data = json.load(file)
-                return package_data.get('devDependencies', {})
-        except KeyError:
-            print(f"Файл {package_json_path} не найден в архиве.")
-            return {}
+def parse_package_json(package_path: str, package: str):
+    """Парсинг файла package.json для извлечения зависимостей пакета."""
+    package_json_path = os.path.join(package_path, package, 'package.json')
+    if not os.path.exists(package_json_path):
+        return {}
+    with open(package_json_path, 'r', encoding='utf-8') as file:
+        package_data = json.load(file)
+    return package_data.get('dependencies', {})
 
-def fetch_deps_from_zip(zip_file: str, package_name: str, deps: list, package: str):
-    """Рекурсивно получаем транзитивные зависимости из zip-файла."""
-    dependencies = parse_package_json_from_zip(zip_file, package)
+def fetch_deps_from_node_modules(node_modules_path: str, deps: list, package: str):
+    """Рекурсивное получение транзитивных зависимостей из node_modules."""
+    dependencies = parse_package_json(node_modules_path, package)
     for dep_name, dep_version in dependencies.items():
         link = (package, dep_name)
         if link not in deps:
             deps.append(link)
-            fetch_deps_from_zip(zip_file, package_name, deps, dep_name)
+            fetch_deps_from_node_modules(node_modules_path, deps, dep_name)
 
 def build_mermaid(deps):
-    """Формируем Mermaid диаграмму."""
+    """Формирование Mermaid-диаграммы."""
     mermaid_code = 'flowchart TD\n'
     for src, dest in deps:
         mermaid_code += f'  {src} --> {dest}\n'
     return mermaid_code
 
 def read_config(config_path: str):
-    """Читаем конфигурацию из YAML файла."""
+    """Читение конфигурации из yaml-файла."""
     with open(config_path, 'r', encoding='utf-8') as file:
         return yaml.safe_load(file)
 
 def main():
     config = read_config('config.yaml')
-
-    # Путь к программе для визуализации графов (Graphviz и др.)
-    # graphviz_path = config['graphviz_path']
-
-    # Путь к zip-файлу пакета
-    zip_file_path = config['package_zip_path']
-
-    # Название папки и пакета
-    package_name = config['package_name']
-
-    # Получаем зависимости верхнего уровня из package.json внутри zip-файла
-    main_deps = parse_package_json_from_zip(zip_file_path, package_name)
+    node_modules_path = config['package_path']  # Путь к папке node_modules
+    deps = []   # Список для хранения зависимостей
     
-    # Список для хранения зависимостей
-    deps = []
-    
-    # Рекурсивно собираем зависимости
-    for dep_name, dep_version in main_deps.items():
-        deps.append(('root', dep_name))
-        fetch_deps_from_zip(zip_file_path, package_name, deps, dep_name)
+    # Получаем зависимости верхнего уровня из package.json каждого пакета в node_modules
+    for package in os.listdir(node_modules_path):
+        package_dir = os.path.join(node_modules_path, package)
+        if os.path.isdir(package_dir) and os.path.exists(os.path.join(package_dir, 'package.json')):
+            fetch_deps_from_node_modules(node_modules_path, deps, package)
 
-    # Строим Mermaid диаграмму
-    mermaid_code = build_mermaid(deps)
-    
-    # Путь к файлу-результату
-    output_path = config['output_path']
+    mermaid_code = build_mermaid(deps)  # Строим Mermaid диаграмму
+    output_path = config['output_path'] # Путь к файлу-результату
     
     # Сохраняем результат в указанный файл
     with open(output_path, 'w', encoding='utf-8') as file:
         file.write(mermaid_code)
-    
-    # Выводим результат на экран
+
     print(f"Mermaid код сохранён в {output_path}.")
     print(mermaid_code)
 
