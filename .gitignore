@@ -1,6 +1,5 @@
 .vscode
 .obsidian
-.pytest_cache
 __pycache__
 README.pdf
 README-FOR-PDF.md
