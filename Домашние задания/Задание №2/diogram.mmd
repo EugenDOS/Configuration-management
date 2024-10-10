@@ -1,75 +1,43 @@
 flowchart TD
-  accepts --> mime-types
-  mime-types --> mime-db
-  accepts --> negotiator
+  express-4.21.1 --> accepts
+  express-4.21.1 --> array-flatten
+  express-4.21.1 --> body-parser
+  body-parser --> qs
+  qs --> side-channel
+  body-parser --> depd
   body-parser --> bytes
-  body-parser --> content-type
   body-parser --> debug
   debug --> ms
-  body-parser --> depd
+  body-parser --> unpipe
   body-parser --> destroy
-  body-parser --> http-errors
+  body-parser --> type-is
+  body-parser --> raw-body
+  raw-body --> bytes
+  raw-body --> unpipe
+  raw-body --> iconv-lite
+  iconv-lite --> safer-buffer
+  raw-body --> http-errors
   http-errors --> depd
   http-errors --> inherits
   http-errors --> setprototypeof
   http-errors --> statuses
   http-errors --> toidentifier
   body-parser --> iconv-lite
-  iconv-lite --> safer-buffer
+  body-parser --> http-errors
   body-parser --> on-finished
   on-finished --> ee-first
-  body-parser --> qs
-  qs --> side-channel
-  side-channel --> call-bind
-  call-bind --> es-define-property
-  es-define-property --> get-intrinsic
-  get-intrinsic --> es-errors
-  get-intrinsic --> function-bind
-  get-intrinsic --> has-proto
-  get-intrinsic --> has-symbols
-  get-intrinsic --> hasown
-  hasown --> function-bind
-  call-bind --> es-errors
-  call-bind --> function-bind
-  call-bind --> get-intrinsic
-  call-bind --> set-function-length
-  set-function-length --> define-data-property
-  define-data-property --> es-define-property
-  define-data-property --> es-errors
-  define-data-property --> gopd
-  gopd --> get-intrinsic
-  set-function-length --> es-errors
-  set-function-length --> function-bind
-  set-function-length --> get-intrinsic
-  set-function-length --> gopd
-  set-function-length --> has-property-descriptors
-  has-property-descriptors --> es-define-property
-  side-channel --> es-errors
-  side-channel --> get-intrinsic
-  side-channel --> object-inspect
-  body-parser --> raw-body
-  raw-body --> bytes
-  raw-body --> http-errors
-  raw-body --> iconv-lite
-  raw-body --> unpipe
-  body-parser --> type-is
-  type-is --> media-typer
-  type-is --> mime-types
-  body-parser --> unpipe
+  body-parser --> content-type
+  express-4.21.1 --> content-disposition
   content-disposition --> safe-buffer
-  express --> accepts
-  express --> array-flatten
-  express --> body-parser
-  express --> content-disposition
-  express --> content-type
-  express --> cookie
-  express --> cookie-signature
-  express --> debug
-  express --> depd
-  express --> encodeurl
-  express --> escape-html
-  express --> etag
-  express --> finalhandler
+  express-4.21.1 --> content-type
+  express-4.21.1 --> cookie
+  express-4.21.1 --> cookie-signature
+  express-4.21.1 --> debug
+  express-4.21.1 --> depd
+  express-4.21.1 --> encodeurl
+  express-4.21.1 --> escape-html
+  express-4.21.1 --> etag
+  express-4.21.1 --> finalhandler
   finalhandler --> debug
   finalhandler --> encodeurl
   finalhandler --> escape-html
@@ -77,40 +45,38 @@ flowchart TD
   finalhandler --> parseurl
   finalhandler --> statuses
   finalhandler --> unpipe
-  express --> fresh
-  express --> http-errors
-  express --> merge-descriptors
-  express --> methods
-  express --> on-finished
-  express --> parseurl
-  express --> path-to-regexp
-  express --> proxy-addr
-  proxy-addr --> forwarded
-  proxy-addr --> ipaddr.js
-  express --> qs
-  express --> range-parser
-  express --> safe-buffer
-  express --> send
-  send --> debug
+  express-4.21.1 --> fresh
+  express-4.21.1 --> http-errors
+  express-4.21.1 --> merge-descriptors
+  express-4.21.1 --> methods
+  express-4.21.1 --> on-finished
+  express-4.21.1 --> parseurl
+  express-4.21.1 --> path-to-regexp
+  express-4.21.1 --> proxy-addr
+  express-4.21.1 --> qs
+  express-4.21.1 --> range-parser
+  express-4.21.1 --> safe-buffer
+  express-4.21.1 --> send
+  send --> ms
   send --> depd
+  send --> etag
+  send --> mime
+  send --> debug
+  send --> fresh
   send --> destroy
+  send --> statuses
   send --> encodeurl
   send --> escape-html
-  send --> etag
-  send --> fresh
   send --> http-errors
-  send --> mime
-  send --> ms
   send --> on-finished
   send --> range-parser
-  send --> statuses
-  express --> serve-static
+  express-4.21.1 --> serve-static
   serve-static --> encodeurl
   serve-static --> escape-html
   serve-static --> parseurl
   serve-static --> send
-  express --> setprototypeof
-  express --> statuses
-  express --> type-is
-  express --> utils-merge
-  express --> vary
+  express-4.21.1 --> setprototypeof
+  express-4.21.1 --> statuses
+  express-4.21.1 --> type-is
+  express-4.21.1 --> utils-merge
+  express-4.21.1 --> vary

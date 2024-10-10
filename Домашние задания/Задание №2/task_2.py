@@ -1,56 +1,81 @@
 import os
 import json
 import yaml
+import zipfile
+import requests
 
-def parse_package_json(package_path: str, package: str):
-    """Парсинг файла package.json для извлечения зависимостей пакета."""
-    package_json_path = os.path.join(package_path, package, 'package.json')
-    if not os.path.exists(package_json_path):
-        return {}
-    with open(package_json_path, 'r', encoding='utf-8') as file:
-        package_data = json.load(file)
-    return package_data.get('dependencies', {})
+def parse_package_json_from_zip(zip_path: str):
+    """Парсинг файла `package.json` внутри ZIP-архива."""
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        # Находим файл package.json внутри одноимённой папки в ZIP
+        package_name = os.path.splitext(os.path.basename(zip_path))[0]
+        package_json_path = f'{package_name}/package.json'
+        
+        with zip_ref.open(package_json_path) as file:
+            package_data = json.load(file)
+    
+    return package_data.get('dependencies', {}), package_name  # Вернём также имя пакета
 
-def fetch_deps_from_node_modules(node_modules_path: str, deps: list, package: str):
-    """Рекурсивное получение транзитивных зависимостей из node_modules."""
-    dependencies = parse_package_json(node_modules_path, package)
+def fetch(name, version):
+    """Запрос транзитивных зависимостей пакета из NPM."""
+    r = requests.get(f'https://registry.npmjs.org/{name}/{version}')
+    if r.status_code == 200:
+        return r.json().get('dependencies', {})
+    return {}
+
+def fetch_deps_from_internet(deps: list, package: str, version: str):
+    """Рекурсивное получение зависимостей через NPM API."""
+    dependencies = fetch(package, version)
     for dep_name, dep_version in dependencies.items():
         link = (package, dep_name)
         if link not in deps:
             deps.append(link)
-            fetch_deps_from_node_modules(node_modules_path, deps, dep_name)
+            fetch_deps_from_internet(deps, dep_name, dep_version)
 
-def build_mermaid(deps):
+def build_mermaid(deps, root_package):
     """Формирование Mermaid-диаграммы."""
     mermaid_code = 'flowchart TD\n'
+    added_links = set()
+    
     for src, dest in deps:
-        mermaid_code += f'  {src} --> {dest}\n'
+        if src == root_package:
+            src = root_package  # Приведение имени к корневому пакету
+        link = f'{src} --> {dest}'
+        if link not in added_links:  # Избегаем дублирования и циклических зависимостей
+            mermaid_code += f'  {link}\n'
+            added_links.add(link)
+    
     return mermaid_code
 
 def read_config(config_path: str):
-    """Читение конфигурации из yaml-файла."""
+    """Чтение конфигурации из YAML-файла."""
     with open(config_path, 'r', encoding='utf-8') as file:
         return yaml.safe_load(file)
 
 def main():
     config = read_config('config.yaml')
-    node_modules_path = config['package_path']  # Путь к папке node_modules
+    zip_package_path = config['package_path']  # Путь к ZIP-пакету
     deps = []   # Список для хранения зависимостей
     
-    # Получаем зависимости верхнего уровня из package.json каждого пакета в node_modules
-    for package in os.listdir(node_modules_path):
-        package_dir = os.path.join(node_modules_path, package)
-        if os.path.isdir(package_dir) and os.path.exists(os.path.join(package_dir, 'package.json')):
-            fetch_deps_from_node_modules(node_modules_path, deps, package)
+    # Получаем зависимости верхнего уровня из package.json в ZIP файле
+    dependencies, root_package = parse_package_json_from_zip(zip_package_path)
+    
+    # Для каждого пакета зависимости находим транзитивные зависимости
+    for package_name, package_version in dependencies.items():
+        link = (root_package, package_name)
+        if link not in deps:
+            deps.append(link)
+            fetch_deps_from_internet(deps, package_name, package_version)
 
-    mermaid_code = build_mermaid(deps)  # Строим Mermaid диаграмму
-    output_path = config['output_path'] # Путь к файлу-результату
+    # Строим Mermaid диаграмму
+    mermaid_code = build_mermaid(deps, root_package)
+    output_path = config['output_path']  # Путь к файлу-результату
     
     # Сохраняем результат в указанный файл
     with open(output_path, 'w', encoding='utf-8') as file:
         file.write(mermaid_code)
 
-    print(f"Mermaid код сохранён в {output_path}.")
+    print(f"Mermaid код сохранён в {output_path}")
     print(mermaid_code)
 
 if __name__ == "__main__":
