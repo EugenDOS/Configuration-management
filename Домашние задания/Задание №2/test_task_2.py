@@ -1,55 +1,108 @@
 import json
-import os
-from task_2 import parse_package_json, fetch_deps_from_node_modules, build_mermaid
+import pytest
+import yaml
+from zipfile import ZipFile
+from unittest.mock import patch
+from task_2 import parse_package_json_from_zip, fetch, fetch_deps_from_internet, build_mermaid, read_config
 
-def test_parse_package_json(tmpdir):
-    # Создаем временный package.json файл
-    package_path = tmpdir.mkdir("node_modules").mkdir("example-package")
-    package_json_path = package_path.join("package.json")
-    package_json_data = {
+# Фикстура для создания тестового ZIP архива с package.json
+@pytest.fixture
+def zip_with_package_json(tmp_path):
+    package_json_content = json.dumps({
+        "name": "test-package",
+        "version": "1.0.0",
         "dependencies": {
-            "dep1": "1.0.0",
-            "dep2": "2.0.0"
+            "dep1": "^1.0.0",
+            "dep2": "^2.0.0"
         }
-    }
-    with open(package_json_path, 'w', encoding='utf-8') as f:
-        json.dump(package_json_data, f)
+    })
 
-    # Передаем путь до node_modules, а не только tmpdir
-    dependencies = parse_package_json(os.path.join(str(tmpdir), "node_modules"), "example-package")
+    package_json_bytes = package_json_content.encode('utf-8')
+    zip_path = tmp_path / "test-package.zip"
+
+    with ZipFile(zip_path, 'w') as zip_file:
+        zip_file.writestr('test-package/package.json', package_json_bytes)
     
-    # Проверяем результат
-    assert dependencies == {"dep1": "1.0.0", "dep2": "2.0.0"}
+    return zip_path
 
+# Тест для функции parse_package_json_from_zip
+def test_parse_package_json_from_zip(zip_with_package_json):
+    deps, package_name = parse_package_json_from_zip(zip_with_package_json)
+    
+    assert package_name == "test-package"
+    assert deps == {"dep1": "^1.0.0", "dep2": "^2.0.0"}
 
-def test_fetch_deps_from_node_modules(tmpdir):
-    # Временные package.json файлы
-    node_modules_path = tmpdir.mkdir("node_modules")
-    package_path = node_modules_path.mkdir("example-package")
-    package_json_data = {
+# Тест для функции fetch
+@patch('requests.get')
+def test_fetch(mock_get):
+    mock_response = mock_get.return_value
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
         "dependencies": {
-            "dep1": "1.0.0",
+            "transitive-dep1": "^3.0.0"
         }
     }
-    with open(package_path.join("package.json"), 'w', encoding='utf-8') as f:
-        json.dump(package_json_data, f)
 
-    dep1_path = node_modules_path.mkdir("dep1")
-    dep1_json_data = {
-        "dependencies": {
-            "dep2": "2.0.0"
-        }
-    }
-    with open(dep1_path.join("package.json"), 'w', encoding='utf-8') as f:
-        json.dump(dep1_json_data, f)
+    deps = fetch("test-package", "1.0.0")
+    assert deps == {"transitive-dep1": "^3.0.0"}
 
+    mock_get.assert_called_once_with('https://registry.npmjs.org/test-package/1.0.0')
+
+# Тест для функции fetch_deps_from_internet
+@patch('requests.get')
+def test_fetch_deps_from_internet(mock_get):
+    mock_response = mock_get.return_value
+    mock_response.status_code = 200
+    # Увеличиваем количество значений в side_effect для каждого запроса
+    mock_response.json.side_effect = [
+        {"dependencies": {"dep1": "^1.0.0", "dep2": "^2.0.0"}},  # Для root-package
+        {"dependencies": {"dep3": "^3.0.0"}},                    # Для dep1
+        {"dependencies": {}},                                    # Для dep2
+        {"dependencies": {}}                                     # Для dep3
+    ]
+    
     deps = []
-    fetch_deps_from_node_modules(str(node_modules_path), deps, "example-package")
+    fetch_deps_from_internet(deps, "root-package", "1.0.0")
+    
+    assert deps == [
+        ("root-package", "dep1"),
+        ("dep1", "dep3"),
+        ("root-package", "dep2")
+    ]
 
-    assert deps == [("example-package", "dep1"), ("dep1", "dep2")]
-
+# Тест для функции build_mermaid
 def test_build_mermaid():
-    deps = [("example-package", "dep1"), ("dep1", "dep2")]
-    expected_mermaid = "flowchart TD\n  example-package --> dep1\n  dep1 --> dep2\n"
-    result = build_mermaid(deps)
-    assert result == expected_mermaid
+    deps = [
+        ("root-package", "dep1"),
+        ("dep1", "dep2"),
+        ("dep2", "dep3")
+    ]
+    
+    mermaid_code = build_mermaid(deps, "root-package")
+    expected_code = """flowchart TD
+  root-package --> dep1
+  dep1 --> dep2
+  dep2 --> dep3
+"""
+    assert mermaid_code == expected_code
+
+# Фикстура для создания тестового YAML файла конфигурации
+@pytest.fixture
+def config_yaml(tmp_path):
+    config_content = {
+        'package_path': 'test-package.zip',
+        'output_path': 'output.md'
+    }
+    config_path = tmp_path / "config.yaml"
+    
+    with open(config_path, 'w', encoding='utf-8') as file:
+        yaml.dump(config_content, file)
+    
+    return config_path
+
+# Тест для функции read_config
+def test_read_config(config_yaml):
+    config = read_config(config_yaml)
+    
+    assert config['package_path'] == 'test-package.zip'
+    assert config['output_path'] == 'output.md'
