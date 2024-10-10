@@ -1,0 +1,8 @@
+# Это пример конфигурации
+var count := 10;
+var result := @{+ count 5};
+
+
+(list 1 2 3 4 5)
+
+[ key1 => value1, key2 => value2 ]
