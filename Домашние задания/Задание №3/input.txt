@@ -5,9 +5,11 @@
 во входном файле файле
 -}
 
-var count := 10;
-var result := @{+ count 5};
+var count_1 := 10;
+var count_2 := 78;
+var result := @{+ count_1 5};
+var comp := @{* count_1 count_2};
 
 (list 1 2 3 4 5)
 
-[ key1 => count, key2 => result ]
+[ key1 => count_1, key2 => result, key3 => comp ]
