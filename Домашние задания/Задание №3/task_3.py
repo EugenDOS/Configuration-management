@@ -1,31 +1,27 @@
 import re
-import argparse
+import sys
 import yaml
 
-# Регулярные выражения для различных синтаксических элементов
-COMMENT_SINGLE_LINE = re.compile(r'#.*')
-COMMENT_MULTI_LINE = re.compile(r'{-.*?-}', re.DOTALL)
-VAR_DECLARATION = re.compile(r'var\s+([A-Za-z_][A-Za-z0-9_]*)\s*:=\s*(.+);')
-CONSTANT_EXPR = re.compile(r'@\{([+\-*\/%])\s+([A-Za-z_][A-Za-z0-9_]*|\d+)\s+(\d+)\}')
-LIST_PATTERN = re.compile(r'\(list\s+(.+?)\s*\)')
-DICT_PATTERN = re.compile(r'\[\s*([A-Za-z_][A-Za-z0-9_]*\s*=>\s*.+?)\s*\]')
-NAME_PATTERN = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
-
-# Обработка синтаксических ошибок
-class SyntaxError(Exception):
+# Исключение для синтаксических ошибок
+class ConfigSyntaxError(Exception):
     def __init__(self, message):
         super().__init__(message)
 
-# Функция для вычисления выражений на этапе трансляции
+# Функция для вычисления константных выражений
 def evaluate_expression(op, var1, var2, variables):
-    # Преобразуем переменные или оставляем числа
-    if var1 in variables:
-        var1 = int(variables[var1])  # преобразуем строку в число
-    else:
+    var1 = variables.get(var1, var1)  # Подстановка переменной или числа
+    var2 = variables.get(var2, var2)  # Подстановка переменной или числа
+
+    try:
         var1 = int(var1)
-    var2 = int(var2)  # второе значение всегда должно быть числом
-    
-    # Выполняем арифметическую операцию
+    except ValueError:
+        raise ConfigSyntaxError(f"Ошибка: переменная '{var1}' должна быть числом.")
+
+    try:
+        var2 = int(var2)
+    except ValueError:
+        raise ConfigSyntaxError(f"Ошибка: переменная '{var2}' должна быть числом.")
+
     if op == '+':
         return var1 + var2
     elif op == '-':
@@ -34,81 +30,121 @@ def evaluate_expression(op, var1, var2, variables):
         return var1 * var2
     elif op == 'mod':
         return var1 % var2
+    elif op == 'min':
+        return min(var1, var2)
     else:
-        raise SyntaxError(f"Неизвестная операция '{op}' в константном выражении.")
+        raise ConfigSyntaxError(f"Неизвестная операция '{op}'")
 
-# Функция для парсинга и обработки входного файла
-def parse_input(text):
-    # Удаление комментариев
-    text = COMMENT_SINGLE_LINE.sub('', text)
-    text = COMMENT_MULTI_LINE.sub('', text)
+# Удаление комментариев
+def remove_comments(text):
+    text = re.sub(r'#.*', '', text)  # Однострочные комментарии
+    text = re.sub(r'\{-.*?-\}', '', text, flags=re.DOTALL)  # Многострочные комментарии
+    return text
+
+# Парсинг константных выражений
+def parse_expression(expr, variables):
+    tokens = expr.strip().split()
+    if len(tokens) != 3:
+        raise ConfigSyntaxError("Ошибка синтаксиса: неверное выражение")
+    op, var1, var2 = tokens
+    return evaluate_expression(op, var1, var2, variables)
+
+# Парсинг значений (число, переменная или выражение)
+def parse_value(value, variables):
+    value = value.strip()
+    if value.isdigit():
+        return int(value)
+    elif value.startswith('@{') and value.endswith('}'):
+        return parse_expression(value[2:-1], variables)
+    elif value in variables:
+        return variables[value]
+    else:
+        raise ConfigSyntaxError(f"Неизвестное значение: {value}")
+
+# Парсинг словарей
+def parse_dict(text, variables):
+    # Удаление внешних скобок
+    content = text[1:-1].strip()
+    if not content:
+        return {}
     
+    # Регулярное выражение для захвата ключей и значений
+    dict_items = re.findall(r'\s*([_A-Za-z][_A-Za-z0-9]*)\s*=>\s*(@\{.*?\}|\d+|[_A-Za-z][_A-Za-z0-9]*)\s*(?:,|$)', content)
+    if not dict_items:
+        raise ConfigSyntaxError(f"Ошибка синтаксиса: неверный формат словаря '{text}'")
+    
+    result = {}
+    for key, value in dict_items:
+        result[key] = parse_value(value.strip(), variables)
+    return result
+
+# Парсинг списков
+def parse_list(text, variables):
+    # Удаление внешних скобок и ключевого слова 'list'
+    content = text[5:-1].strip()
+    if not content:
+        return []
+    
+    # Использование регулярных выражений для захвата элементов списка, включая выражения
+    items = re.findall(r'@{.*?}|\S+', content)
+    return [parse_value(item, variables) for item in items]
+
+# Функция для парсинга кода входного файла
+def parse_input(input_text):
+    input_text = remove_comments(input_text)
+    lines = input_text.splitlines()
     variables = {}
-    yaml_data = {}
-    
-    # Парсинг строк с объявлениями переменных
-    for match in VAR_DECLARATION.finditer(text):
-        var_name, var_value = match.groups()
-        if CONSTANT_EXPR.match(var_value):
-            # Обрабатываем выражения с константами
-            op, var1, var2 = CONSTANT_EXPR.match(var_value).groups()
-            result = evaluate_expression(op, var1, var2, variables)
-            variables[var_name] = result
+    result = {}
+
+    for line in lines:
+        line = line.strip()
+        
+        if not line:
+            continue
+
+        if line.startswith("var"):
+            match = re.match(r"var\s+([_A-Za-z][_A-Za-z0-9]*)\s*:=\s*(.*);", line)
+            if not match:
+                raise ConfigSyntaxError("Ошибка синтаксиса: неверное объявление переменной")
+            var_name, var_value = match.groups()
+            if not var_value.strip():
+                raise ConfigSyntaxError("Ошибка синтаксиса: неверное объявление переменной")
+            var_value = parse_value(var_value, variables)
+            variables[var_name] = var_value
+        elif line.startswith('[') and line.endswith(']'):
+            result['dict'] = parse_dict(line, variables)
+        elif line.startswith('(list') and line.endswith(')'):
+            result['list'] = parse_list(line, variables)
         else:
-            # Простое присваивание
-            variables[var_name] = int(var_value.strip()) if var_value.strip().isdigit() else var_value.strip()
-    
-    # Проверка на неправильные конструкции списков
-    if not LIST_PATTERN.search(text):
-        raise SyntaxError("Ошибка синтаксиса: неверное определение списка. Ожидается конструкция (list ...)")
+            raise ConfigSyntaxError(f"Ошибка синтаксиса: неизвестная строка '{line}'")
 
-    # Преобразование списков
-    for match in LIST_PATTERN.finditer(text):
-        items = match.group(1).split()
-        items = [int(item) if item.isdigit() else item for item in items]  # Преобразуем элементы списка в числа
-        yaml_data['list'] = items
-    
-    # Проверка на неправильные конструкции словарей
-    if not DICT_PATTERN.search(text):
-        raise SyntaxError("Ошибка синтаксиса: неверное определение словаря. Ожидается конструкция [key => value, ...]")
+    return result
 
-    # Преобразование словарей
-    for match in DICT_PATTERN.finditer(text):
-        dict_items = {}
-        pairs = match.group(1).split(',')
-        for pair in pairs:
-            if '=>' not in pair:
-                raise SyntaxError(f"Ошибка синтаксиса: неверная пара в словаре '{pair}'. Ожидается формат key => value.")
-            key, value = pair.split('=>')
-            key = key.strip()
-            value = value.strip()
-            dict_items[key] = int(value) if value.isdigit() else value
-        yaml_data['dict'] = dict_items
-    
-    return yaml_data
-
-# Основная функция
+# Основная функция программы
 def main():
-    parser = argparse.ArgumentParser(description="Конфигурационный парсер в YAML")
-    parser.add_argument('input_file', help="Путь к входному файлу конфигурации")
-    args = parser.parse_args()
+    if len(sys.argv) != 2:
+        print("Использование: python task_3.py <input_file>")
+        sys.exit(1)
+
+    input_file = sys.argv[1]
 
     try:
-        with open(args.input_file, 'r') as file:
-            input_text = file.read()
-
-        # Парсинг входного текста
-        yaml_data = parse_input(input_text)
-        
-        # Вывод данных в формате YAML
-        print(yaml.dump(yaml_data, default_flow_style=False, allow_unicode=True))
-
+        with open(input_file, 'r', encoding='utf-8') as f:
+            input_text = f.read()
     except FileNotFoundError:
-        print(f"Ошибка: файл {args.input_file} не найден.")
-    except SyntaxError as e:
-        print(f"Синтаксическая ошибка: {str(e)}")
-    except Exception as e:
-        print(f"Ошибка: {str(e)}")
+        print(f"Файл {input_file} не найден.")
+        sys.exit(1)
+
+    try:
+        result = parse_input(input_text)
+        yaml_output = yaml.dump(result, allow_unicode=True, default_flow_style=False)
+        print(yaml_output)
+    except ConfigSyntaxError as e:
+        print(f"Ошибка синтаксиса: {e}")
+        sys.exit(1)
+    except ValueError as e:
+        print(f"Ошибка: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
