@@ -1,92 +1,80 @@
 import pytest
-from task_3 import parse_input, ConfigSyntaxError
+from peco.peco import parse
+from task_3 import main, variables  # точка и словарь переменных из основного кода
 
-# Тест на парсинг правильного списка
-def test_parse_input_list():
-    input_text = "(list 1 2 3 4)"
-    result = parse_input(input_text)
-    assert result['list'] == [1, 2, 3, 4]
+# Тест на успешную инициализацию константных переменных
+def test_variable_assignment():
+    src = '''
+    var Num := 42;
+    var List := (list 1 2 3 4);
+    '''
+    parse(src, main)
+    assert variables['Num'] == 42.0
+    assert variables['List'] == [1.0, 2.0, 3.0, 4.0]
 
-# Тест на парсинг правильного словаря
-def test_parse_input_dict():
-    input_text = "[key1 => 10, key2 => 20]"
-    result = parse_input(input_text)
-    assert result['dict'] == {'key1': 10, 'key2': 20}
+# Тест на вычисление арифметического выражения с константой
+def test_arithmetic_expression():
+    src = '''
+    var Num := 10;
+    @{+ Num 5}
+    '''
+    result = parse(src, main)
+    assert result.ok
+    assert result.stack[0]['Num'] == 15.0  # Проверка, что Num увеличилось на 5
 
-# Тест на парсинг константного выражения и подстановки
-def test_parse_input_constant_expression():
-    input_text = """
-    var a := 5;
-    var b := @{+ a 3};
-    [key1 => b]
-    """
-    result = parse_input(input_text)
-    assert result['dict'] == {'key1': 8}
+# Тест на минимальное значение
+def test_min_expression():
+    src = '''
+    var Num := 20;
+    @{min Num 10}
+    '''
+    result = parse(src, main)
+    assert result.ok
+    assert result.stack[0]['Num'] == 10.0  # Проверка, что Num стал равен минимальному значению
 
-# Тест на вложенные константные выражения
-def test_parse_input_nested_expressions():
-    input_text = """
-    var a := @{+ 2 2};
-    var b := @{* a 5};
-    (list 1 @{+ 1 2} @{mod 10 3})
-    [key => @{* 2 3}]
-    """
-    result = parse_input(input_text)
-    assert result['list'] == [1, 3, 1]
-    assert result['dict'] == {'key': 6}
+# Тест на модульное деление
+def test_mod_expression():
+    src = '''
+    var Num := 15;
+    @{mod Num 4}
+    '''
+    result = parse(src, main)
+    assert result.ok
+    assert result.stack[0]['Num'] == 3.0  # Проверка остатка от деления 15 на 4
 
-# Тест на синтаксическую ошибку в словаре
-def test_parse_input_invalid_dict_syntax():
-    input_text = "[key1 10]"  # Неправильный формат словаря
-    with pytest.raises(ConfigSyntaxError, match="Ошибка синтаксиса: неверный формат словаря '\\[key1 10\\]'"):
-        parse_input(input_text)
+# Тест на вложенные объекты
+def test_nested_object():
+    src = '''
+    var Vm := [
+        Ip => (list 192 168 1 1),
+        Memory => 1024,
+        Test => [
+            UnderTest => 20,
+        ],
+    ];
+    '''
+    parse(src, main)
+    assert variables['Vm']['Ip'] == [192.0, 168.0, 1.0, 1.0]
+    assert variables['Vm']['Memory'] == 1024.0
+    assert variables['Vm']['Test']['UnderTest'] == 20.0
 
-# Тест на синтаксическую ошибку в константном выражении
-def test_parse_input_invalid_constant_expression():
-    input_text = "var a := @{+ 1};"  # Неполное выражение
-    with pytest.raises(ConfigSyntaxError, match="Ошибка синтаксиса: неверное выражение"):
-        parse_input(input_text)
-
-# Тест на корректную обработку комментариев
-def test_parse_input_with_comments():
-    input_text = """
+# Тест на комментарии и пробелы
+def test_comments_and_whitespace():
+    src = '''
     # Это комментарий
-    var a := 5;  # Еще один комментарий
-    {- Многострочный
-    комментарий -}
-    [key1 => a]
-    """
-    result = parse_input(input_text)
-    assert result['dict'] == {'key1': 5}
+    var Num := 50; # Комментарий
+    var List := (list 5 6 7 8); {- Многострочный комментарий -}
+    @{+ Num 10}
+    '''
+    result = parse(src, main)
+    assert result.ok
+    assert result.stack[0]['Num'] == 60.0
+    assert result.stack[0]['List'] == [5.0, 6.0, 7.0, 8.0]
 
-# Тест на работу с числовыми выражениями
-def test_parse_input_math_operations():
-    input_text = """
-    var x := @{+ 10 20};
-    var y := @{min 10 15};
-    [result1 => x, result2 => y]
-    """
-    result = parse_input(input_text)
-    assert result['dict'] == {'result1': 30, 'result2': 10}
-
-# Тест на парсинг пустого списка
-def test_parse_input_empty_list():
-    input_text = "(list)"
-    result = parse_input(input_text)
-    assert result['list'] == []
-
-# Тест на синтаксическую ошибку в объявлении переменной
-def test_parse_input_invalid_var_syntax():
-    input_text = "var a := ;"  # Неправильный синтаксис объявления переменной
-    with pytest.raises(ConfigSyntaxError, match="Ошибка синтаксиса: неверное объявление переменной"):
-        parse_input(input_text)
-
-# Тест на корректное парсинг и преобразование целых чисел
-def test_parse_input_with_numbers():
-    input_text = """
-    var num1 := 10;
-    var num2 := 20;
-    [key1 => num1, key2 => num2]
-    """
-    result = parse_input(input_text)
-    assert result['dict'] == {'key1': 10, 'key2': 20}
+# Тест на отсутствие переменной в выражении
+def test_undefined_variable_error():
+    src = '''
+    @{+ UndefinedVar 5}
+    '''
+    with pytest.raises(NameError):
+        parse(src, main)

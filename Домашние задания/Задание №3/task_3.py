@@ -92,23 +92,23 @@ constExpr = seq(skip(r'@{'), group(seq(operation, name, num)), skip(r'}'), mkCon
 main = seq(group(seq(many(consts), many(constExpr))), ws, mkobj)
 
 # Тестирование
-def test():
-    src = '''
-    # comment
-    {- что-то -}
-    var Num := 666;
-    var List := (list 1 2 3 4 5);
-    var Vm := [
-        Ip => (list 192 168 44 44),
-        Memory => 1024,
-        Test => [
-            UnderTest => 20,
-        ],
-    ];
-    @{mod Num 1}
-    '''
-    s = parse(src, main)
-    print(s.ok)
-    print(s.stack)
+# def test():
+#     src = '''
+#     # comment
+#     {- что-то -}
+#     var Num := 666;
+#     var List := (list 1 2 3 4 5);
+#     var Vm := [
+#         Ip => (list 192 168 44 44),
+#         Memory => 1024,
+#         Test => [
+#             UnderTest => 20,
+#         ],
+#     ];
+#     @{mod Num 1}
+#     '''
+#     s = parse(src, main)
+#     print(s.ok)
+#     print(s.stack)
 
-test()
+# test()
