@@ -3,7 +3,19 @@ from peco.peco import *
 # Глобальный словарь для хранения значений переменных
 variables = {}
 
-# Обработка определения константных переменных
+# Класс для обработки синтаксических ошибок с указанием места ошибки
+class ParserError(Exception):
+    def __init__(self, message, line=None, position=None):
+        self.message = message
+        self.line = line
+        self.position = position
+        super().__init__(self.get_error_message())
+
+    def get_error_message(self):
+        location = f" at line {self.line}, position {self.position}" if self.line and self.position else ""
+        return f"Syntax Error{location}: {self.message}"
+
+# Обработка определения константных переменных с детализированной ошибкой
 def assign_const(n_v):
     variables[n_v[0]] = n_v[1]
     return n_v  # Возвращаем значение, чтобы оно добавилось в стек
@@ -12,10 +24,13 @@ mkAssign = to(assign_const)
 
 # Обработка объектов (словарей)
 def mk_item(pairs):
-    # Фильтруем только пары (ключ, значение), исключая None и булевые значения
-    valid_pairs = [(k, v) for item in pairs if item and isinstance(item, tuple) and len(item) == 2 
-                   for k, v in [item] if isinstance(k, str) and v is not None]
-    return valid_pairs
+    try:
+        # Фильтруем только пары (ключ, значение), исключая None и булевые значения
+        valid_pairs = [(k, v) for item in pairs if item and isinstance(item, tuple) and len(item) == 2 
+                       for k, v in [item] if isinstance(k, str) and v is not None]
+        return valid_pairs
+    except Exception as e:
+        raise ParserError(f"Error in dictionary item definition: {e}")
 
 # Обработка цифр, массивов и объектов (словарей)
 mknum = to(lambda n: float(n))
@@ -24,26 +39,29 @@ mkobj = to(lambda o: dict(mk_item(o)))  # Преобразуем в словар
 
 # Обработка константных выражений
 def constRes(expr):
-    oper      = expr[0]
-    var_name  = expr[1]
-    num       = expr[2]
-    
-    # Получение значения переменной из глобального словаря
-    if var_name not in variables:
-        raise NameError(f"Variable '{var_name}' is not defined.")
-    
-    var = variables[var_name]
-    
-    # Выполняем операцию над переменной
-    if   oper == "mod": result = var % num
-    elif oper == "min": result = min(var, num)
-    else:               result = eval(f"{var}{oper}{num}")
-    
-    # Сохраняем изменённое значение обратно в словарь переменных
-    variables[var_name] = result
-    
-    # Возвращаем обновлённую пару (имя, значение) для стека
-    return (var_name, result)
+    try:
+        oper      = expr[0]
+        var_name  = expr[1]
+        num       = expr[2]
+        
+        # Получение значения переменной из глобального словаря
+        if var_name not in variables:
+            raise NameError(f"Variable '{var_name}' is not defined.")
+        
+        var = variables[var_name]
+        
+        # Выполняем операцию над переменной
+        if   oper == "mod": result = var % num
+        elif oper == "min": result = min(var, num)
+        else:               result = eval(f"{var}{oper}{num}")
+        
+        # Сохраняем изменённое значение обратно в словарь переменных
+        variables[var_name] = result
+        
+        # Возвращаем обновлённую пару (имя, значение) для стека
+        return (var_name, result)
+    except Exception as e:
+        raise ParserError("Error in constant expression '@{" + f"{oper} {var_name} {num}" + "}': " + str(e))
 
 mkConstRes = to(constRes)
 
@@ -92,23 +110,31 @@ constExpr = seq(skip(r'@{'), group(seq(operation, name, num)), skip(r'}'), mkCon
 main = seq(group(seq(many(consts), many(constExpr))), ws, mkobj)
 
 # Тестирование
-# def test():
-#     src = '''
-#     # comment
-#     {- что-то -}
-#     var Num := 666;
-#     var List := (list 1 2 3 4 5);
-#     var Vm := [
-#         Ip => (list 192 168 44 44),
-#         Memory => 1024,
-#         Test => [
-#             UnderTest => 20,
-#         ],
-#     ];
-#     @{mod Num 1}
-#     '''
-#     s = parse(src, main)
-#     print(s.ok)
-#     print(s.stack)
+def test():
+    src = '''
+    # comment
+    {- что-то -}
+    var Num := 666;
+    var List := (list 1 2 3 4 5);
+    var Vm := [
+        Ip => (list 192 168 44 44),
+        Memory => 1024,
+        Test => [
+            UnderTest => 20,
+        ],
+    ];
+    @{+ Num 1}
+    '''
+    try:
+        s = parse(src, main)
+        if s.ok:
+            print("Parsing succeeded.")
+            print(s.stack)
+        else:
+            print("Parsing failed.")
+            if hasattr(s, 'error_position'):
+                raise ParserError("Unexpected syntax structure", line=s.error_position.line, position=s.error_position.col)
+    except ParserError as e:
+        print(e)
 
-# test()
+test()
