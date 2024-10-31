@@ -1,3 +1,5 @@
+import argparse
+import yaml
 from peco.peco import *
 
 # Глобальный словарь для хранения значений переменных
@@ -109,32 +111,32 @@ constExpr = seq(skip(r'@{'), group(seq(operation, name, num)), skip(r'}'), mkCon
 # Точка входа в программу обработки
 main = seq(group(seq(many(consts), many(constExpr))), ws, mkobj)
 
-# Тестирование
-def test():
-    src = '''
-    # comment
-    {- что-то -}
-    var Num := 666;
-    var List := (list 1 2 3 4 5);
-    var Vm := [
-        Ip => (list 192 168 44 44),
-        Memory => 1024,
-        Test => [
-            UnderTest => 20,
-        ],
-    ];
-    @{+ Num 1}
-    '''
+# Функция для загрузки и парсинга конфигурационного файла
+def parse_file(file_path):
     try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            src = f.read()
         s = parse(src, main)
         if s.ok:
-            print("Parsing succeeded.")
-            print(s.stack)
+            result_dict = dict(s.stack[0]) if isinstance(s.stack, tuple) else s.stack
+            yaml_output = yaml.dump(result_dict, default_flow_style=False, allow_unicode=True)
+            print(yaml_output)
         else:
             print("Parsing failed.")
             if hasattr(s, 'error_position'):
                 raise ParserError("Unexpected syntax structure", line=s.error_position.line, position=s.error_position.col)
     except ParserError as e:
         print(e)
+    except FileNotFoundError:
+        print(f"Error: The file '{file_path}' does not exist.")
+    except Exception as e:
+        print(f"An error occurred while parsing: {e}")
 
-test()
+# Основная программа
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Parse a configuration file in a custom language.")
+    parser.add_argument("file", help="Path to the configuration file to parse")
+    args = parser.parse_args()
+    
+    # Запуск парсинга файла
+    parse_file(args.file)

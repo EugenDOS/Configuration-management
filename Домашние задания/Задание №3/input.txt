@@ -1,15 +1,12 @@
-# Это однострочный комментарий во входном файле файле
-
-{-
-Это многострочный комментарий
-во входном файле файле
--}
-
-var count_1 := 10;
-var count_2 := 78;
-var result := @{+ count_1 5};
-var comp := @{* count_1 count_2};
-
-(list 1 2 3 4 5)
-
-[ key1 => count_1, key2 => result, key3 => comp ]
+# comment
+{- что-то -}
+var Num := 666;
+var List := (list 1 2 3 4 5);
+var Vm := [
+    Ip => (list 192 168 44 44),
+    Memory => 1024,
+    Test => [
+        UnderTest => 20,
+    ],
+];
+@{+ Num 1}
