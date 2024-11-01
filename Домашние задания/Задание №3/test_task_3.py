@@ -35,6 +35,11 @@ def test_invalid_list():
     with pytest.raises(ParserError):
         parse_config(src)
 
+def test_empty_list():
+    src = "var EmptyList := (list);"
+    expected_output = "EmptyList: []\n"
+    assert yaml.safe_load(parse_config(src)) == yaml.safe_load(expected_output)
+
 # === Тесты для объектов (Vm) ===
 def test_valid_obj():
     src = '''
@@ -56,13 +61,18 @@ def test_invalid_obj():
     with pytest.raises(ParserError):
         parse_config(src)
 
+def test_empty_dict():
+    src = "var EmptyDict := [];"
+    expected_output = "EmptyDict: {}\n"
+    assert yaml.safe_load(parse_config(src)) == yaml.safe_load(expected_output)
+
 # === Тесты для константных выражений (операции с переменными) ===
 def test_valid_const_expr():
     src = '''
     var Num := 10;
-    @{+ Num 5}
+    var ConstExpr := @{+ Num 5};
     '''
-    expected_output = "Num: 15.0\n"
+    expected_output = "Num: 10.0\nConstExpr: 15.0\n"
     assert yaml.safe_load(parse_config(src)) == yaml.safe_load(expected_output)
 
 def test_invalid_const_expr():
@@ -72,6 +82,22 @@ def test_invalid_const_expr():
     '''
     with pytest.raises(ParserError):
         parse_config(src)
+
+def test_mod_operation():
+    src = '''
+    var Num := 10;
+    var ModResult := @{mod Num 3};
+    '''
+    expected_output = "Num: 10.0\nModResult: 1.0\n"
+    assert yaml.safe_load(parse_config(src)) == yaml.safe_load(expected_output)
+
+def test_min_operation():
+    src = '''
+    var Num := 10;
+    var MinResult := @{min Num 3};
+    '''
+    expected_output = "Num: 10.0\nMinResult: 3.0\n"
+    assert yaml.safe_load(parse_config(src)) == yaml.safe_load(expected_output)
 
 # === Тесты для вложенных структур ===
 def test_valid_nested_obj():
@@ -128,3 +154,10 @@ def test_unclosed_list():
     src = "var List := (list 1 2 3;"
     with pytest.raises(ParserError):
         parse_config(src)
+
+# === Тесты на пробелы и отступы ===
+def test_spaces_and_indentation():
+    src = "   var    Num   :=   42   ;   "
+    expected_output = "Num: 42.0\n"
+    assert yaml.safe_load(parse_config(src)) == yaml.safe_load(expected_output)
+

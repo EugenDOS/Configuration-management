@@ -17,7 +17,7 @@ class ParserError(Exception):
         location = f" at line {self.line}, position {self.position}" if self.line and self.position else ""
         return f"Syntax Error{location}: {self.message}"
 
-# Обработка определения константных переменных с детализированной ошибкой
+# Обработка определения константных переменных
 def assign_const(n_v):
     variables[n_v[0]] = n_v[1]
     return n_v  # Возвращаем значение, чтобы оно добавилось в стек
@@ -44,7 +44,7 @@ def constRes(expr):
     try:
         oper      = expr[0]
         var_name  = expr[1]
-        num       = expr[2]
+        var_val   = expr[2]
         
         # Получение значения переменной из глобального словаря
         if var_name not in variables:
@@ -53,17 +53,14 @@ def constRes(expr):
         var = variables[var_name]
         
         # Выполняем операцию над переменной
-        if   oper == "mod": result = var % num
-        elif oper == "min": result = min(var, num)
-        else:               result = eval(f"{var}{oper}{num}")
-        
-        # Сохраняем изменённое значение обратно в словарь переменных
-        variables[var_name] = result
+        if   oper == "mod": result = var % var_val
+        elif oper == "min": result = min(var, var_val)
+        else:               result = eval(f"{var}{oper}{var_val}")
         
         # Возвращаем обновлённую пару (имя, значение) для стека
-        return (var_name, result)
+        return result
     except Exception as e:
-        raise ParserError("Error in constant expression '@{" + f"{oper} {var_name} {num}" + "}': " + str(e))
+        raise ParserError("Error in constant expression '@{" + f"{oper} {var_name} {var_val}" + "}': " + str(e))
 
 mkConstRes = to(constRes)
 
@@ -97,10 +94,7 @@ consts = seq(group(seq(skip(r'var'), name, skip(r':='), val, skip(r';'))), mkAss
 obj = seq(skip(r'\['), group(many(seq(item, skip(r',')))), skip(r'\]'), mkobj)
 
 # Правило для элементов словаря
-item = group(seq(name, skip(r'=>'), alt(val, obj)))
-
-# Правило обработки значений (варианты типов)
-val = alt(num, array, obj)
+item = group(seq(name, skip(r'=>'), val))
 
 # Правило обработки операций для константных выражений
 operation = tok(r'\+|\-|\*|min|mod')
@@ -108,8 +102,11 @@ operation = tok(r'\+|\-|\*|min|mod')
 # Правило обработки константных выражений
 constExpr = seq(skip(r'@{'), group(seq(operation, name, num)), skip(r'}'), mkConstRes)
 
+# Правило обработки значений (варианты типов)
+val = alt(num, array, obj, constExpr)
+
 # Точка входа в программу обработки
-main = seq(group(seq(many(consts), many(constExpr))), ws, mkobj)
+main = seq(group(seq(many(consts))), ws, mkobj)
 
 # Функция для загрузки и парсинга конфигурационного файла
 def parse_file(file_path):
@@ -120,7 +117,7 @@ def parse_file(file_path):
         if s.ok:
             result_dict = dict(s.stack[0]) if isinstance(s.stack, tuple) else s.stack
             yaml_output = yaml.dump(result_dict, default_flow_style=False, allow_unicode=True)
-            print(yaml_output)
+            print("\n" + yaml_output + "\n")
         else:
             print("Parsing failed.")
             if hasattr(s, 'error_position'):

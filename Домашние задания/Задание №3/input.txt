@@ -1,12 +1,24 @@
-# comment
-{- что-то -}
+# Пример конфигурационного файла.
+{- 
+    что-то 
+    как-то
+    да зачем-то
+    потому что
+    для чего-то
+-}
 var Num := 666;
-var List := (list 1 2 3 4 5);
-var Vm := [
+var List_1 := (list 1 2 3 4 5);
+var List_2 := (list 1 (list 2 3));
+var List_3 := (list 1 (list 2 [A => 3, B => 4,]));
+var List_4 := (list @{min Num 56});
+var Dict := [
     Ip => (list 192 168 44 44),
     Memory => 1024,
-    Test => [
-        UnderTest => 20,
+    TestDict => [
+        UnderTestDict => 20,
     ],
+    DictConstExpr => @{- Num 1},
 ];
-@{+ Num 1}
+var ConstExpr := @{+ Num 1};
+var EmptyList := (list);
+var EmptyDict := [];
