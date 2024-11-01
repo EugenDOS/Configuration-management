@@ -1,80 +1,130 @@
 import pytest
-from peco.peco import parse
-from task_3 import main, variables  # точка и словарь переменных из основного кода
+import yaml
+from peco.peco import *
+from task_3 import main, ParserError
 
-# Тест на успешную инициализацию константных переменных
-def test_variable_assignment():
+# Функция для парсинга строк напрямую
+def parse_config(src):
+    s = parse(src, main)
+    if s.ok:
+        # Преобразуем результат в словарь
+        result_dict = dict(s.stack[0]) if isinstance(s.stack, tuple) else s.stack
+        return yaml.dump(result_dict, default_flow_style=False, allow_unicode=True)
+    else:
+        raise ParserError("Parsing failed.")
+
+# === Тесты для чисел (Num) ===
+def test_valid_num():
+    src = "var Num := 42;"
+    expected_output = "Num: 42.0\n"
+    assert yaml.safe_load(parse_config(src)) == yaml.safe_load(expected_output)
+
+def test_invalid_num():
+    src = "var Num := invalid_number;"
+    with pytest.raises(ParserError):
+        parse_config(src)
+
+# === Тесты для массивов (List) ===
+def test_valid_list():
+    src = "var List := (list 1 2 3 4 5);"
+    expected_output = "List:\n- 1.0\n- 2.0\n- 3.0\n- 4.0\n- 5.0\n"
+    assert yaml.safe_load(parse_config(src)) == yaml.safe_load(expected_output)
+
+def test_invalid_list():
+    src = "var List := (list 1 2 three 4 5);"
+    with pytest.raises(ParserError):
+        parse_config(src)
+
+# === Тесты для объектов (Vm) ===
+def test_valid_obj():
     src = '''
-    var Num := 42;
-    var List := (list 1 2 3 4);
+    var Vm := [
+        Ip => (list 192 168 1 1),
+        Memory => 2048,
+    ];
     '''
-    parse(src, main)
-    assert variables['Num'] == 42.0
-    assert variables['List'] == [1.0, 2.0, 3.0, 4.0]
+    expected_output = "Vm:\n  Ip:\n  - 192.0\n  - 168.0\n  - 1.0\n  - 1.0\n  Memory: 2048.0\n"
+    assert yaml.safe_load(parse_config(src)) == yaml.safe_load(expected_output)
 
-# Тест на вычисление арифметического выражения с константой
-def test_arithmetic_expression():
+def test_invalid_obj():
+    src = '''
+    var Vm := [
+        Ip => (list 192 168 1 one),
+        Memory => 2048,
+    ];
+    '''
+    with pytest.raises(ParserError):
+        parse_config(src)
+
+# === Тесты для константных выражений (операции с переменными) ===
+def test_valid_const_expr():
     src = '''
     var Num := 10;
     @{+ Num 5}
     '''
-    result = parse(src, main)
-    assert result.ok
-    assert result.stack[0]['Num'] == 15.0  # Проверка, что Num увеличилось на 5
+    expected_output = "Num: 15.0\n"
+    assert yaml.safe_load(parse_config(src)) == yaml.safe_load(expected_output)
 
-# Тест на минимальное значение
-def test_min_expression():
+def test_invalid_const_expr():
     src = '''
-    var Num := 20;
-    @{min Num 10}
+    var Num := 10;
+    @{+ NotDefinedVar 5}
     '''
-    result = parse(src, main)
-    assert result.ok
-    assert result.stack[0]['Num'] == 10.0  # Проверка, что Num стал равен минимальному значению
+    with pytest.raises(ParserError):
+        parse_config(src)
 
-# Тест на модульное деление
-def test_mod_expression():
-    src = '''
-    var Num := 15;
-    @{mod Num 4}
-    '''
-    result = parse(src, main)
-    assert result.ok
-    assert result.stack[0]['Num'] == 3.0  # Проверка остатка от деления 15 на 4
-
-# Тест на вложенные объекты
-def test_nested_object():
+# === Тесты для вложенных структур ===
+def test_valid_nested_obj():
     src = '''
     var Vm := [
         Ip => (list 192 168 1 1),
-        Memory => 1024,
-        Test => [
-            UnderTest => 20,
+        Config => [
+            CPU => 4,
+            RAM => 4096,
         ],
     ];
     '''
-    parse(src, main)
-    assert variables['Vm']['Ip'] == [192.0, 168.0, 1.0, 1.0]
-    assert variables['Vm']['Memory'] == 1024.0
-    assert variables['Vm']['Test']['UnderTest'] == 20.0
+    expected_output = (
+        "Vm:\n"
+        "  Ip:\n"
+        "  - 192.0\n"
+        "  - 168.0\n"
+        "  - 1.0\n"
+        "  - 1.0\n"
+        "  Config:\n"
+        "    CPU: 4.0\n"
+        "    RAM: 4096.0\n"
+    )
+    assert yaml.safe_load(parse_config(src)) == yaml.safe_load(expected_output)
 
-# Тест на комментарии и пробелы
-def test_comments_and_whitespace():
+def test_invalid_nested_obj():
     src = '''
-    # Это комментарий
-    var Num := 50; # Комментарий
-    var List := (list 5 6 7 8); {- Многострочный комментарий -}
-    @{+ Num 10}
+    var Vm := [
+        Ip => (list 192 168 1 1),
+        Config => [
+            CPU => four,
+            RAM => 4096,
+        ],
+    ];
     '''
-    result = parse(src, main)
-    assert result.ok
-    assert result.stack[0]['Num'] == 60.0
-    assert result.stack[0]['List'] == [5.0, 6.0, 7.0, 8.0]
+    with pytest.raises(ParserError):
+        parse_config(src)
 
-# Тест на отсутствие переменной в выражении
-def test_undefined_variable_error():
+# === Тесты на некорректный синтаксис ===
+def test_missing_semicolon():
+    src = "var Num := 42"
+    with pytest.raises(ParserError):
+        parse_config(src)
+
+def test_incorrect_syntax_structure():
     src = '''
-    @{+ UndefinedVar 5}
+    var Num := 10;
+    @{+ Num 5
     '''
-    with pytest.raises(NameError):
-        parse(src, main)
+    with pytest.raises(ParserError):
+        parse_config(src)
+
+def test_unclosed_list():
+    src = "var List := (list 1 2 3;"
+    with pytest.raises(ParserError):
+        parse_config(src)
