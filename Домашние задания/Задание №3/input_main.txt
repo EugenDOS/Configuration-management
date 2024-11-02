@@ -1,4 +1,5 @@
-# Пример конфигурационного файла.
+# Пример основного конфигурационного файла
+
 {- 
     что-то 
     как-то
@@ -6,11 +7,16 @@
     потому что
     для чего-то
 -}
+
 var Num := 666;
+
 var List_1 := (list 1 2 3 4 5);
 var List_2 := (list 1 (list 2 3));
 var List_3 := (list 1 (list 2 [A => 3, B => 4,]));
 var List_4 := (list @{min Num 56});
+
+var ConstExpr := @{+ Num 1};
+
 var Dict := [
     Ip => (list 192 168 44 44),
     Memory => 1024,
@@ -19,6 +25,6 @@ var Dict := [
     ],
     DictConstExpr => @{- Num 1},
 ];
-var ConstExpr := @{+ Num 1};
+
 var EmptyList := (list);
 var EmptyDict := [];

@@ -1,0 +1,16 @@
+# Конфигурация веб-приложения
+
+var Max_threads := 16;
+
+var Web_config := [
+    Webserver => [
+        Hostname => 127001,
+        Port => 8080,
+        Threads => @{mod Max_threads 6},
+        Routes => [
+            Home => 1,
+            Login => 2,
+            Logout => 3,
+        ],
+    ],
+];

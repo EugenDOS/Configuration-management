@@ -1,0 +1,13 @@
+# Настройка базы данных
+
+var Max_conn := 100;
+var Timeout := 30;
+
+var Database := [
+    Database => [
+        Host => 19216801,
+        Port => 5432,
+        Free_connections_count => @{min Max_conn 7},
+        Connection_timeout => 1000,
+    ],
+];

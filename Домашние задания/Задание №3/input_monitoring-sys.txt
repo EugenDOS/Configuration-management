@@ -1,0 +1,12 @@
+# Конфигурация системы мониторинга
+
+var Interval := 15;
+var Retention := 365;
+
+var Monitoring_config := [
+    Monitoring => [
+        Interval => @{+ Interval 0},
+        Retention_days => @{- Retention 0},
+        Services => (list 1 2 3 4),
+    ],
+];
