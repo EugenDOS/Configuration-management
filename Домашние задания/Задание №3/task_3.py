@@ -44,23 +44,23 @@ def constRes(expr):
     try:
         oper      = expr[0]
         var_name  = expr[1]
-        var_val   = expr[2]
+        num       = expr[2]
         
         # Получение значения переменной из глобального словаря
         if var_name not in variables:
             raise NameError(f"Variable '{var_name}' is not defined.")
         
-        var = variables[var_name]
+        var_val = variables[var_name]
         
         # Выполняем операцию над переменной
-        if   oper == "mod": result = var % var_val
-        elif oper == "min": result = min(var, var_val)
-        else:               result = eval(f"{var}{oper}{var_val}")
+        if   oper == "mod": result = var_val % num
+        elif oper == "min": result = min(var_val, num)
+        else:               result = eval(f"{var_val}{oper}{num}")
         
         # Возвращаем обновлённую пару (имя, значение) для стека
         return result
     except Exception as e:
-        raise ParserError("Error in constant expression '@{" + f"{oper} {var_name} {var_val}" + "}': " + str(e))
+        raise ParserError("Error in constant expression '@{" + f"{oper} {var_name} {num}" + "}': " + str(e))
 
 mkConstRes = to(constRes)
 
@@ -73,28 +73,27 @@ scan = lambda f: memo(seq(ws, f))
 # Пропуск того, что передано как аргумент (регулярка)
 skip = lambda c: scan(eat(c))
 
-# Кладёт распознанное в стек с помощью cite(args*)
+# Кладёт распознанное в стек с помощью cite(*args)
 tok = lambda c: scan(cite(eat(c)))
 
 # Обработка чисел и имён соответственно
 num = seq(tok(r'[-+]?\d+'), mknum)
 name = tok(r'[_A-Z][_a-zA-Z0-9]*')
 
-# Рекурсивная пересылка (заглушки)
+# Рекурсивная пересылка (заглушка)
 val = lambda s: val(s)
-item = lambda s: item(s)
 
 # Правило для массивов
 array = seq(skip(r'\(list'), group(many(val)), skip(r'\)'), mkarr)
 
 # Правило для определения константных переменных
-consts = seq(group(seq(skip(r'var'), name, skip(r':='), val, skip(r';'))), mkAssign)
-
-# Правило для объектов (словарей)
-obj = seq(skip(r'\['), group(many(seq(item, skip(r',')))), skip(r'\]'), mkobj)
+const = seq(group(seq(skip(r'var'), name, skip(r':='), val, skip(r';'))), mkAssign)
 
 # Правило для элементов словаря
 item = group(seq(name, skip(r'=>'), val))
+
+# Правило для объектов (словарей)
+obj = seq(skip(r'\['), group(many(seq(item, skip(r',')))), skip(r'\]'), mkobj)
 
 # Правило обработки операций для константных выражений
 operation = tok(r'\+|\-|\*|min|mod')
@@ -106,7 +105,7 @@ constExpr = seq(skip(r'@{'), group(seq(operation, name, num)), skip(r'}'), mkCon
 val = alt(num, array, obj, constExpr)
 
 # Точка входа в программу обработки
-main = seq(group(seq(many(consts))), ws, mkobj)
+main = seq(group(seq(many(const))), ws, mkobj)
 
 # Функция для загрузки и парсинга конфигурационного файла
 def parse_file(file_path):
