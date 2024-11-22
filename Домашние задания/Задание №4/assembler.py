@@ -20,15 +20,15 @@ def assembler(instructions, logPath=None):
             B, C = args
             byteCode += serializer(13, ((B, 4), (C, 29)), 5)
             logOperation(logPath, 13, B, C)
-        if operation == "read":
+        elif operation == "read":
             B, C = args
             byteCode += serializer(14, ((B, 4), (C, 9)), 5)
             logOperation(logPath, 14, B, C)
-        if operation == "write":
+        elif operation == "write":
             B, C = args
             byteCode += serializer(6, ((B, 4), (C, 34)), 5)
             logOperation(logPath, 6, B, C)
-        if operation == "popcnt":
+        elif operation == "popcnt":
             B, C = args
             byteCode += serializer(7, ((B, 4), (C, 9)), 5)
             logOperation(logPath, 7, B, C)
