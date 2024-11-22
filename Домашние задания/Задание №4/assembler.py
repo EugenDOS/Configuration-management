@@ -34,13 +34,13 @@ def assembler(instructions, logPath=None):
             logOperation(logPath, 7, B, C)
     return byteCode
 
-def assemble(instructions_path: str, logPath=None):
-    with open(instructions_path, "r", encoding="utf-8") as f:
+def assemble(instructionsPath: str, logPath=None):
+    with open(instructionsPath, "r", encoding="utf-8") as f:
         instructions = [[j if j.isdigit() == False else int(j) for j in i.split()] for i in f.readlines()]
     return assembler(instructions, logPath)
 
-def saveToBin(assebledInstructions, fileName):
-    with open(fileName, "wb") as binary_file:
+def saveToBin(assebledInstructions, binaryPath):
+    with open(binaryPath, "wb") as binary_file:
         binary_file.write(bytes(assebledInstructions))
 
 if __name__ == "__main__":
