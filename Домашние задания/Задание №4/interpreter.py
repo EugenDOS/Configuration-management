@@ -8,7 +8,6 @@ def interpreter(binary_path, result_path, memory_range):
     memory = [0] * 6
     registers = [0]
 
-    # Читаем бинарный файл
     with open(binary_path, "rb") as binary_file:
         bytecode = binary_file.read()
 
