@@ -44,7 +44,7 @@ def save_to_bin(assebled_instructions, binary_path):
         binary_file.write(bytes(assebled_instructions))
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Assembling the instructions file to byte-code.")
+    parser = argparse.ArgumentParser(description="Assembling the instructions file to the byte-code.")
     parser.add_argument("instructions_path", help="Path to the instructions file (txt)")
     parser.add_argument("binary_path", help="Path to the binary file (bin)")
     parser.add_argument("log_path", help="Path to the log file (csv)")
