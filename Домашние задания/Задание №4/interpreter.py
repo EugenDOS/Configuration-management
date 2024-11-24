@@ -5,7 +5,6 @@ def popcnt(value):
     return bin(value).count('1')
 
 def interpreter(binary_path, result_path, memory_range):
-    # Задаем память и регистры
     memory = [0] * 6
     registers = [0]
 
@@ -13,7 +12,7 @@ def interpreter(binary_path, result_path, memory_range):
     with open(binary_path, "rb") as binary_file:
         bytecode = binary_file.read()
 
-    # Декодируем и исполняем команды
+    # Декодирование и исполнение команд
     i = 0
     while i < len(bytecode):
         command = bytecode[i] & 0x0F  # Биты 0-3 для команды
@@ -40,7 +39,6 @@ def interpreter(binary_path, result_path, memory_range):
             registers[B] = popcnt(registers[C])
         i += 5  # Переход к следующей команде (каждая команда 5 байт)
 
-    # Сохраняем указанный диапазон памяти в файл-результат
     with open(result_path, "w", encoding="utf-8") as csv_file:
         csv_file.write("Address,Value\n")
         for address in range(memory_range[0], memory_range[1] + 1):
