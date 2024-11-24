@@ -1,3 +1,5 @@
+import argparse
+
 def popcnt(value):
     """Подсчет количества установленных битов (единиц) в числе."""
     return bin(value).count('1')
@@ -35,7 +37,6 @@ def interpreter(binary_path, result_path, memory_range):
             # popcnt <адрес регистра (куда)> <адрес регистра (откуда)>
             B = (int.from_bytes(bytecode[i:i+5], "little") >> 4) & 0x1F  # Биты 4-8
             C = (int.from_bytes(bytecode[i:i+5], "little") >> 9) & 0x1F  # Биты 9-13
-            print(f"popcnt | B={B}, C={C}")
             registers[B] = popcnt(registers[C])
         i += 5  # Переход к следующей команде (каждая команда 5 байт)
 
@@ -46,4 +47,10 @@ def interpreter(binary_path, result_path, memory_range):
             csv_file.write(f"{address},{memory[address]}\n")
 
 if __name__ == "__main__":
-    interpreter("program.bin", "result.csv", (0, 5))
+    parser = argparse.ArgumentParser(description="Interpreting the bytes like instructions (from binary file) to the csv-table.")
+    parser.add_argument("binary_path", help="Path to the binary file (bin)")
+    parser.add_argument("result_path", help="Path to the result file (csv)")
+    parser.add_argument("first_index", help="The first index of the displayed memory")
+    parser.add_argument("last_index", help="The last index of the displayed memory")
+    args = parser.parse_args()
+    interpreter(args.binary_path, args.result_path, (int(args.first_index), int(args.last_index)))
