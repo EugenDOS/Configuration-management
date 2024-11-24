@@ -49,6 +49,8 @@ if __name__ == "__main__":
     parser.add_argument("binary_path", help="Path to the binary file (bin)")
     parser.add_argument("log_path", help="Path to the log file (csv)")
     args = parser.parse_args()
+    with open(args.log_path, "w", encoding="utf-8") as log_file:
+        log_file.write(f"Operation code,Constant/Address,Address\n")
     result = assemble(args.instructions_path, args.log_path)
     save_to_bin(result, args.binary_path)
     
