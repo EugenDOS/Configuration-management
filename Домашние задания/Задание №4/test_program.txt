@@ -1,4 +1,0 @@
-load 3 0
-write 0 0
-load 5 0
-write 1 0
