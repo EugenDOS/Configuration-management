@@ -53,7 +53,3 @@ if __name__ == "__main__":
         log_file.write(f"Operation code,Constant/Address,Address\n")
     result = assemble(args.instructions_path, args.log_path)
     save_to_bin(result, args.binary_path)
-    
-
-
-
